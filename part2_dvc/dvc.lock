@@ -14,22 +14,22 @@ stages:
     outs:
     - path: data/initial_data.csv
       hash: md5
-      md5: c6ab6287bea9dec443948b60791a0f1c
-      size: 18991728
+      md5: 537f39ffc045e8054a2b12cbee510992
+      size: 18998968
   fit_model:
     cmd: python scripts/fit.py
     deps:
     - path: data/initial_data.csv
       hash: md5
-      md5: c6ab6287bea9dec443948b60791a0f1c
-      size: 18991728
+      md5: 537f39ffc045e8054a2b12cbee510992
+      size: 18998968
     - path: scripts/fit.py
       hash: md5
       md5: 30a24afff561e5201163119369131b8f
       size: 3095
     params:
       params.yaml:
-        experiment_name: yp1_flats_buildings_baseline
+        experiment_name: flats_buildings_baseline
         index_col: flat_id
         one_hot_drop: if_binary
         random_state: 42
@@ -38,26 +38,26 @@ stages:
     outs:
     - path: models/fitted_model.pkl
       hash: md5
-      md5: 82084a22a7492442579bc3370d1d48fe
-      size: 4718
+      md5: 48382ed4642a6d5a72f4447baba84fa7
+      size: 4750
   evaluate_model:
     cmd: python scripts/evaluate.py
     deps:
     - path: data/initial_data.csv
       hash: md5
-      md5: c6ab6287bea9dec443948b60791a0f1c
-      size: 18991728
+      md5: 537f39ffc045e8054a2b12cbee510992
+      size: 18998968
     - path: models/fitted_model.pkl
       hash: md5
-      md5: 82084a22a7492442579bc3370d1d48fe
-      size: 4718
+      md5: 48382ed4642a6d5a72f4447baba84fa7
+      size: 4750
     - path: scripts/evaluate.py
       hash: md5
       md5: 561bf92c2cd0b9963541bed516cf1483
       size: 2523
     params:
       params.yaml:
-        experiment_name: yp1_flats_buildings_baseline
+        experiment_name: flats_buildings_baseline
         index_col: flat_id
         metrics:
         - neg_mean_absolute_error
@@ -70,5 +70,5 @@ stages:
     outs:
     - path: cv_results/cv_res.json
       hash: md5
-      md5: aed08f5c0c114c8c8b9fede75c40de0f
+      md5: c0b9d6bd419fc3f4fb40cd61c281299c
       size: 172
