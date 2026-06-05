@@ -95,11 +95,20 @@ python scripts/publish_artifacts_to_s3.py
 | Параметр | Значение |
 | --- | --- |
 | Endpoint | `https://storage.yandexcloud.net` |
-| Bucket | `s3-student-mle-20260415-5a6a70b312-freetrack` (заполнить в `.env` → `S3_BUCKET_NAME`) |
-| DVC remote | `s3_storage` (`part2_dvc/.dvc/config`) |
+| Bucket | `s3-student-mle-20260415-5a6a70b312-freetrack` (имя в `.env` → `S3_BUCKET_NAME`) |
+| Project prefix | `mle-project-sprint-1/` (внутри бакета — общий префикс всех артефактов проекта) |
+| DVC remote | `s3_storage` → `s3://<bucket>/mle-project-sprint-1` (`part2_dvc/.dvc/config`) |
 
-После `dvc push` + `publish_artifacts_to_s3.py` модель доступна по ключу
-`s3://<bucket>/models/fitted_model.pkl`.
+После `dvc push` + `publish_artifacts_to_s3.py` reviewer-friendly артефакты доступны
+по ключам:
+
+- модель: `s3://<bucket>/mle-project-sprint-1/models/fitted_model.pkl`
+- данные: `s3://<bucket>/mle-project-sprint-1/data/initial_data.csv`
+- метрики: `s3://<bucket>/mle-project-sprint-1/cv_results/cv_res.json`
+
+DVC native объекты лежат рядом, по `s3://<bucket>/mle-project-sprint-1/files/md5/…`.
+Project-prefix даёт возможность держать в одном бакете несколько спринтов
+без коллизий имён.
 
 ## .env
 

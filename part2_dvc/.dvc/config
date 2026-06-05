@@ -1,5 +1,5 @@
 [core]
     remote = s3_storage
 ['remote "s3_storage"']
-    url = s3://s3-student-mle-20260415-5a6a70b312-freetrack
+    url = s3://s3-student-mle-20260415-5a6a70b312-freetrack/mle-project-sprint-1
     endpointurl = https://storage.yandexcloud.net

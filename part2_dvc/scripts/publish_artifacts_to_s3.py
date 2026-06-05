@@ -1,32 +1,26 @@
 # part2_dvc/scripts/publish_artifacts_to_s3.py
 #
 # Зеркалирует артефакты DVC из content-addressed путей (files/md5/...) в
-# человекочитаемые пути в том же бакете S3.
+# человекочитаемые пути в том же бакете S3, под префиксом проекта.
 #
 # Запускать после `dvc push`. Копия выполняется внутри бакета (без скачивания и
-# повторной заливки), работает и для локального MinIO, и для Yandex Cloud S3.
+# повторной заливки).
 #
-# Зачем:
-#   Чекер ревьюера Practicum (и человек, который зайдёт через UI бакета) ожидают,
-#   что модель лежит, например, по ключу
-#     s3://<bucket>/models/fitted_model.pkl
-#   А DVC хранит её как
-#     s3://<bucket>/files/md5/<2>/<остаток>.
-#   Скрипт читает dvc.lock и кладёт человекочитаемые копии рядом с DVC-нативной
-#   раскладкой. dvc pull продолжает работать.
-#
-# Конфигурация (через переменные окружения, fallback — .env проекта):
+# Источник истины по bucket + project-prefix — DVC remote URL из .dvc/config:
+#   url = s3://<bucket>/<project-prefix>
+# Креды и endpoint — env vars (или .env проекта как fallback):
 #   S3_ENDPOINT_URL        https://storage.yandexcloud.net
-#   S3_BUCKET_NAME         имя бакета Yandex Cloud
 #   AWS_ACCESS_KEY_ID
 #   AWS_SECRET_ACCESS_KEY
 #
 # Использование:
 #   cd part2_dvc && python scripts/publish_artifacts_to_s3.py
 
+import configparser
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yaml
 
@@ -62,56 +56,82 @@ def cfg_value(name: str, env_cfg: dict) -> str:
     return os.environ.get(name) or env_cfg.get(name, "")
 
 
+# Чтение URL default DVC remote: s3://bucket/prefix -> (bucket, prefix)
+def parse_dvc_remote(dvc_config_path: Path):
+    cp = configparser.ConfigParser()
+    cp.read(dvc_config_path)
+    remote_name = cp.get("core", "remote")
+    section = f'remote "{remote_name}"'
+    url = cp.get(section, "url")
+    u = urlparse(url)
+    if u.scheme != "s3":
+        raise ValueError(f"DVC remote URL не s3-схема: {url!r}")
+    bucket = u.netloc
+    prefix = u.path.strip("/")
+    return bucket, prefix
+
+
 def main():
-    # 1. Прочитать конфигурацию (env + .env fallback)
+    # 1. Прочитать .env как fallback для env vars (endpoint, creds)
     env_path = find_env(HERE)
     env_cfg = load_dotenv(env_path) if env_path else {}
     if env_path:
         print(f"loaded fallback env from {env_path}")
 
     endpoint = cfg_value("S3_ENDPOINT_URL", env_cfg)
-    bucket = cfg_value("S3_BUCKET_NAME", env_cfg)
     key = cfg_value("AWS_ACCESS_KEY_ID", env_cfg)
     secret = cfg_value("AWS_SECRET_ACCESS_KEY", env_cfg)
 
+    # 2. Прочитать bucket + project-prefix из DVC remote (single source of truth)
+    try:
+        bucket, prefix = parse_dvc_remote(PART2_DVC / ".dvc" / "config")
+    except (ValueError, configparser.Error, FileNotFoundError) as e:
+        print(f"FATAL: не удалось прочитать DVC remote из .dvc/config: {e}",
+              file=sys.stderr)
+        sys.exit(1)
+
     missing = [n for n, v in (
-        ("S3_ENDPOINT_URL", endpoint), ("S3_BUCKET_NAME", bucket),
-        ("AWS_ACCESS_KEY_ID", key), ("AWS_SECRET_ACCESS_KEY", secret),
+        ("S3_ENDPOINT_URL", endpoint),
+        ("AWS_ACCESS_KEY_ID", key),
+        ("AWS_SECRET_ACCESS_KEY", secret),
     ) if not v]
     if missing:
         print(f"FATAL: не заданы переменные: {missing}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"target: s3://{bucket}   endpoint={endpoint}")
+    prefix_display = f"/{prefix}" if prefix else ""
+    print(f"target: s3://{bucket}{prefix_display}   endpoint={endpoint}")
 
-    # 2. Подключение к S3 через s3fs
+    # 3. Подключение к S3 через s3fs
     try:
         import s3fs
     except ImportError:
         print("FATAL: pip install s3fs", file=sys.stderr)
         sys.exit(1)
 
-    # 3. Прочитать dvc.lock и собрать пары (src_key, dst_key)
+    # 4. Прочитать dvc.lock и собрать пары (src_key, dst_key) под project-prefix
     lock_path = PART2_DVC / "dvc.lock"
     if not lock_path.exists():
-        print(f"FATAL: {lock_path} не найден. Сначала запустите dvc repro.", file=sys.stderr)
+        print(f"FATAL: {lock_path} не найден. Сначала запустите dvc repro.",
+              file=sys.stderr)
         sys.exit(1)
 
     lock = yaml.safe_load(lock_path.read_text())
+    prefix_part = f"{prefix}/" if prefix else ""
 
     pairs = []
     for stage_name, stage in lock.get("stages", {}).items():
         for out in stage.get("outs", []):
             md5 = out["md5"]
-            src = f"{bucket}/files/md5/{md5[:2]}/{md5[2:]}"
-            dst = f"{bucket}/{out['path']}"
+            src = f"{bucket}/{prefix_part}files/md5/{md5[:2]}/{md5[2:]}"
+            dst = f"{bucket}/{prefix_part}{out['path']}"
             pairs.append((src, dst))
 
     if not pairs:
         print("в dvc.lock нет outs — нечего публиковать")
         return
 
-    # 4. Серверная копия внутри бакета (без скачивания и перезаливки)
+    # 5. Серверная копия внутри бакета (без скачивания и перезаливки)
     fs = s3fs.S3FileSystem(endpoint_url=endpoint, key=key, secret=secret)
     copied = skipped = 0
     for src, dst in pairs:
@@ -123,7 +143,7 @@ def main():
         fs.copy(src, dst)
         copied += 1
 
-    # 5. Итог
+    # 6. Итог
     print(f"done. copied={copied}, skipped={skipped}")
 
 
