@@ -39,7 +39,7 @@ def telegram_notify(context):
     max_active_runs=1,  # сериализуем запуски, чтобы не было гонок на destination-таблице
     tags=["sprint-1", "etl", "real-estate"],
     default_args={
-        "owner": "yp-mle",
+        "owner": "airflow",
         "on_failure_callback": telegram_notify,
         "on_success_callback": telegram_notify,
     },
