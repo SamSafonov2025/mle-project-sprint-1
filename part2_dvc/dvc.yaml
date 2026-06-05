@@ -1,0 +1,42 @@
+stages:
+  load_data:
+    cmd: python scripts/data.py
+    deps:
+      - scripts/data.py
+    params:
+      - source_table
+      - index_col
+    outs:
+      - data/initial_data.csv
+
+  fit_model:
+    cmd: python scripts/fit.py
+    deps:
+      - data/initial_data.csv
+      - scripts/fit.py
+    params:
+      - index_col
+      - target_col
+      - ridge_alpha
+      - one_hot_drop
+      - random_state
+      - experiment_name
+    outs:
+      - models/fitted_model.pkl
+
+  evaluate_model:
+    cmd: python scripts/evaluate.py
+    deps:
+      - models/fitted_model.pkl
+      - data/initial_data.csv
+      - scripts/evaluate.py
+    params:
+      - index_col
+      - target_col
+      - n_splits
+      - n_jobs
+      - metrics
+      - experiment_name
+      - random_state
+    metrics:
+      - cv_results/cv_res.json

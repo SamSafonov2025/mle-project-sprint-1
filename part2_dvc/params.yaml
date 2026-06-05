@@ -1,0 +1,20 @@
+# DVC pipeline parameters
+experiment_name: flats_buildings_baseline
+
+# data stage
+source_table: flats_buildings_clean
+index_col: flat_id
+target_col: price
+
+# fit stage
+ridge_alpha: 1.0
+one_hot_drop: if_binary
+random_state: 42
+
+# evaluate stage
+n_splits: 5
+n_jobs: -1
+metrics:
+  - neg_mean_absolute_error
+  - neg_root_mean_squared_error
+  - r2
