@@ -16,8 +16,8 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from cleaning import clean_flats_buildings
 
 
-SOURCE_CONN = "source_db"
-DESTINATION_CONN = "destination_db"
+SOURCE_CONN = "mle_project_sprint_1_source_db"
+DESTINATION_CONN = "mle_project_sprint_1_destination_db"
 SOURCE_TABLE = "flats_buildings_raw"
 DESTINATION_TABLE = "flats_buildings_clean"
 

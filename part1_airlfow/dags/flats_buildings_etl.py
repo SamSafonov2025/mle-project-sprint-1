@@ -11,8 +11,8 @@
 # telegram_notify при появлении токена.
 #
 # Connections в Airflow (одноразовая настройка в UI или CLI):
-#   source_db       -> подключение к источнику (buildings, flats)
-#   destination_db  -> подключение к целевой БД (flats_buildings_raw)
+#   mle_project_sprint_1_source_db       -> источник (buildings, flats)
+#   mle_project_sprint_1_destination_db  -> целевая БД (flats_buildings_raw)
 from __future__ import annotations
 
 import pendulum
@@ -20,8 +20,8 @@ from airflow.decorators import dag, task
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
-SOURCE_CONN = "source_db"
-DESTINATION_CONN = "destination_db"
+SOURCE_CONN = "mle_project_sprint_1_source_db"
+DESTINATION_CONN = "mle_project_sprint_1_destination_db"
 DESTINATION_TABLE = "flats_buildings_raw"
 
 
